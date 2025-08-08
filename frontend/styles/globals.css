@@ -1,0 +1,15 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root { color-scheme: light dark; }
+
+.card {
+  @apply rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm;
+}
+.btn {
+  @apply px-4 py-2 rounded-xl font-medium border border-slate-300 dark:border-slate-700 hover:opacity-90;
+}
+
+body { font-family: sans-serif; direction: rtl; }
+.page-gradient{@apply bg-gradient-to-br from-indigo-600/10 via-fuchsia-500/10 to-cyan-400/10;}

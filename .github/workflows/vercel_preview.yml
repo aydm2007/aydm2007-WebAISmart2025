@@ -1,0 +1,30 @@
+name: Frontend Preview (Vercel)
+
+on:
+  pull_request:
+    branches: [ main, master ]
+
+jobs:
+  vercel-preview:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    env:
+      VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+      VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+      VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: frontend/package.json
+      - run: npm ci || npm i
+      - name: Pull Vercel Environment Info
+        run: npx vercel pull --yes --environment=preview --token=$VERCEL_TOKEN
+      - name: Build Project Artifacts
+        run: npx vercel build --token=$VERCEL_TOKEN
+      - name: Deploy Project Artifacts
+        run: npx vercel deploy --prebuilt --token=$VERCEL_TOKEN

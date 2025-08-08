@@ -1,0 +1,14 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+
+/* print styles */
+@media print {
+  html, body { background: white; }
+  .no-print { display: none !important; }
+  .print-card { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  .page-break { break-after: page; }
+}
+/* smooth scrollbars */
+* { scrollbar-width: thin; }

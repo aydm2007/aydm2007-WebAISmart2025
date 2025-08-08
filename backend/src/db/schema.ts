@@ -1,0 +1,1 @@
+// Schema descriptions for AI context

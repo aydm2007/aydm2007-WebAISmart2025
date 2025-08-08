@@ -97,9 +97,7 @@ async function processFinancialQueryStream(res: Response, question: string) {
     // إرسال رسالة بداية
     sendSSE(res, {
       type: 'token',
-      data: 'جاري تحليل استعلامك المالي...
-
-'
+      data: 'جاري تحليل استعلامك المالي...\n\n'
     });
 
     // معالجة الاستعلام المالي
@@ -130,18 +128,13 @@ ${result.sql}
         const tableData = formatResultsAsTable(result.results.slice(0, 10));
         sendSSE(res, {
           type: 'token',
-          data: tableData + '
-
-'
+          data: tableData + '\n\n'
         });
 
         // إرسال التحليل
         sendSSE(res, {
           type: 'token',
-          data: `**التحليل:**
-${result.analysis}
-
-`
+          data: `**التحليل:**\n${result.analysis}\n\n`
         });
       } else {
         sendSSE(res, {
@@ -154,9 +147,7 @@ ${result.analysis}
     } else {
       sendSSE(res, {
         type: 'token',
-        data: `❌ ${result.error}
-
-`
+        data: `❌ ${result.error}\n\n`
       });
     }
 
@@ -180,10 +171,8 @@ function formatResultsAsTable(results: any[]): string {
   if (results.length === 0) return 'لا توجد نتائج';
 
   const headers = Object.keys(results[0]);
-  let table = '| ' + headers.join(' | ') + ' |
-';
-  table += '| ' + headers.map(() => '---').join(' | ') + ' |
-';
+  let table = '| ' + headers.join(' | ') + ' |\n';
+  table += '| ' + headers.map(() => '---').join(' | ') + ' |\n';
 
   results.forEach(row => {
     const values = headers.map(header => {
@@ -192,8 +181,7 @@ function formatResultsAsTable(results: any[]): string {
       if (typeof value === 'number') return value.toLocaleString('ar-SA');
       return String(value);
     });
-    table += '| ' + values.join(' | ') + ' |
-';
+    table += '| ' + values.join(' | ') + ' |\n';
   });
 
   return table;
@@ -202,6 +190,43 @@ function formatResultsAsTable(results: any[]): string {
 // إضافة route للأمثلة المالية
 router.get('/financial-examples', (req, res) => {
   res.json(FINANCIAL_EXAMPLES);
+});
+
+// route لكشف الشذوذ المالي
+router.get('/anomaly-detection', async (req, res) => {
+  try {
+    const anomalies = await detectFinancialAnomalies();
+    res.json({
+      success: true,
+      anomalies,
+      count: anomalies.length,
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: 'فشل في كشف الشذوذ المالي',
+      message: error instanceof Error ? error.message : 'خطأ غير معروف'
+    });
+  }
+});
+
+// route لتقرير الشذوذ الشامل
+router.get('/anomaly-report', async (req, res) => {
+  try {
+    const report = await generateAnomalyReport();
+    res.json({
+      success: true,
+      report,
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: 'فشل في إنتاج تقرير الشذوذ',
+      message: error instanceof Error ? error.message : 'خطأ غير معروف'
+    });
+  }
 });
 
 export default router;

@@ -6,7 +6,7 @@ import Sidebar from './components/Sidebar';
 import FinancialExamples from './components/FinancialExamples';
 import { getCompanies, getFinancialData, type Company, type FinancialData } from './lib/api';
 import { LineChart, Line, ResponsiveContainer, XAxis, YAxis, Tooltip, AreaChart, Area } from 'recharts';
-import { TrendingUp, TrendingDown, BarChart3, DollarSign, Activity, MessageSquare, PieChart, Settings } from 'lucide-react';
+import { TrendingUp, TrendingDown, BarChart3, DollarSign, Activity, MessageSquare, PieChart, Settings, AlertTriangle, Brain } from 'lucide-react';
 import Link from 'next/link';
 
 export default function HomePage() {
@@ -259,6 +259,36 @@ export default function HomePage() {
                 </div>
                 <h4 className="text-sm text-gray-600">هامش الربح</h4>
                 <p className="text-xl font-bold text-gray-900">{kpis.profitMargin.toFixed(1)}%</p>
+              </div>
+
+              {/* كشف الشذوذ المالي */}
+              <div className="bg-white p-4 rounded-lg shadow-sm border">
+                <div className="flex items-center justify-between mb-2">
+                  <div className="p-2 bg-red-100 rounded-lg">
+                    <AlertTriangle className="w-5 h-5 text-red-600" />
+                  </div>
+                  <Link href="/chat" className="text-xs text-blue-600 hover:text-blue-800">
+                    اسأل عن الشذوذ
+                  </Link>
+                </div>
+                <h4 className="text-sm text-gray-600">كشف الشذوذ</h4>
+                <p className="text-xl font-bold text-gray-900">متاح</p>
+                <p className="text-xs text-gray-500 mt-1">تحليل تلقائي للأنماط الغريبة</p>
+              </div>
+
+              {/* التوصيات الذكية */}
+              <div className="bg-white p-4 rounded-lg shadow-sm border">
+                <div className="flex items-center justify-between mb-2">
+                  <div className="p-2 bg-purple-100 rounded-lg">
+                    <Brain className="w-5 h-5 text-purple-600" />
+                  </div>
+                  <Link href="/chat" className="text-xs text-blue-600 hover:text-blue-800">
+                    احصل على توصيات
+                  </Link>
+                </div>
+                <h4 className="text-sm text-gray-600">ذكاء اصطناعي</h4>
+                <p className="text-xl font-bold text-gray-900">نشط</p>
+                <p className="text-xs text-gray-500 mt-1">توصيات مالية ذكية</p>
               </div>
             </div>
 

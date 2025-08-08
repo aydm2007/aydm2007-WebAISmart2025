@@ -12,6 +12,7 @@
     "dev:fast": "node --loader ts-node/esm --no-warnings=ExperimentalWarning src/index.ts"
   },
   "dependencies": {
+    "@google/generative-ai": "^0.24.1",
     "@langchain/core": "0.2.29",
     "@langchain/openai": "0.2.6",
     "axios": "^1.11.0",

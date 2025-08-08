@@ -4,6 +4,7 @@ import { guardSql } from '../db/sql_guard';
 import { SQL_GENERATION_PROMPT, INSIGHT_GENERATION_PROMPT } from './prompts';
 import { generateFinancialQuery, generateAnalysisPrompt, FINANCIAL_SYSTEM_PROMPT } from './financial-prompts';
 import { detectFinancialAnomalies, generateAnomalyReport } from './anomaly-detection';
+import { geminiAI } from './gemini-integration';
 import { HumanMessage, SystemMessage } from '@langchain/core/messages';
 import { AppError } from '../utils/errors';
 import type { Response } from 'express';
@@ -228,17 +229,37 @@ export async function processFinancialQuery(question: string) {
     // 1. الحصول على وصف قاعدة البيانات المالية
     const schema = getSchemaDescription();
 
-    // 2. استخدام LangChain للنظام المالي المتخصص
-    const llm = ensureLLM();
+    // 2. استخدام AI للنظام المالي المتخصص (Gemini أو OpenAI)
+    let generatedSQL: string;
     const prompt = generateFinancialQuery(question, schema);
 
-    const messages = [
-      new SystemMessage(FINANCIAL_SYSTEM_PROMPT),
-      new HumanMessage(prompt)
-    ];
-
-    const response = await llm.invoke(messages);
-    const generatedSQL = extractSql(response.content);
+    // جرب Gemini أولاً إذا كان متاحاً
+    if (geminiAI.isConfigured()) {
+      try {
+        console.log('🔵 Using Gemini AI for SQL generation');
+        generatedSQL = await geminiAI.generateFinancialSQL(question, schema);
+      } catch (error) {
+        console.log('⚠️ Gemini failed, falling back to OpenAI');
+        // التراجع إلى OpenAI
+        const llm = ensureLLM();
+        const messages = [
+          new SystemMessage(FINANCIAL_SYSTEM_PROMPT),
+          new HumanMessage(prompt)
+        ];
+        const response = await llm.invoke(messages);
+        generatedSQL = extractSql(response.content);
+      }
+    } else {
+      // استخدام OpenAI
+      console.log('🟢 Using OpenAI for SQL generation');
+      const llm = ensureLLM();
+      const messages = [
+        new SystemMessage(FINANCIAL_SYSTEM_PROMPT),
+        new HumanMessage(prompt)
+      ];
+      const response = await llm.invoke(messages);
+      generatedSQL = extractSql(response.content);
+    }
     const cleanSQL = cleanFinancialQuery(generatedSQL);
 
     console.log(`📊 Generated SQL: ${cleanSQL}`);
@@ -247,8 +268,21 @@ export async function processFinancialQuery(question: string) {
     const results = executeQuery(cleanSQL);
     console.log(`✅ Query executed, found ${results.length} records`);
 
-    // 4. تحليل النتائج المالية
-    const analysis = await generateFinancialAnalysis(question, cleanSQL, results);
+    // 4. تحليل النتائج المالية (Gemini أو OpenAI)
+    let analysis: string;
+
+    if (geminiAI.isConfigured()) {
+      try {
+        console.log('🔵 Using Gemini AI for analysis');
+        analysis = await geminiAI.analyzeFinancialResults(question, cleanSQL, results);
+      } catch (error) {
+        console.log('⚠️ Gemini analysis failed, falling back to OpenAI');
+        analysis = await generateFinancialAnalysis(question, cleanSQL, results);
+      }
+    } else {
+      console.log('🟢 Using OpenAI for analysis');
+      analysis = await generateFinancialAnalysis(question, cleanSQL, results);
+    }
 
     return {
       success: true,
@@ -274,8 +308,7 @@ function cleanFinancialQuery(sql: string): string {
   // إزالة علامات الكود والنصوص الإضافية
   sql = sql.replace(/```sql\s*|\s*```/g, '').trim();
   sql = sql.replace(/^.*?SELECT/i, 'SELECT'); // إزالة أي نص قبل SELECT
-  sql = sql.split('
-')[0]; // أخذ السطر الأول فقط
+  sql = sql.split('\n')[0]; // أخذ السطر الأول فقط
 
   // إزالة الفاصلة المنقوطة النهائية
   sql = sql.replace(/;\s*$/, '');

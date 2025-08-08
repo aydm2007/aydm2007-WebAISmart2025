@@ -2,6 +2,8 @@ import { ChatOpenAI } from '@langchain/openai';
 import { getSchemaDescription, executeQuery } from '../db/database';
 import { guardSql } from '../db/sql_guard';
 import { SQL_GENERATION_PROMPT, INSIGHT_GENERATION_PROMPT } from './prompts';
+import { generateFinancialQuery, generateAnalysisPrompt, FINANCIAL_SYSTEM_PROMPT } from './financial-prompts';
+import { detectFinancialAnomalies, generateAnomalyReport } from './anomaly-detection';
 import { HumanMessage, SystemMessage } from '@langchain/core/messages';
 import { AppError } from '../utils/errors';
 import type { Response } from 'express';
@@ -203,4 +205,152 @@ export async function processUserQueryStream(res: Response, question: string) {
     res.write(`data: ${JSON.stringify({ type: 'error', data: { message: e?.message || String(e) } })}\n\n`);
     res.end();
   }
+}
+
+// ===== دوال النظام المالي المتخصص =====
+
+export async function processFinancialQuery(question: string) {
+  try {
+    console.log(`🤖 Processing financial query: "${question}"`);
+
+    // كشف الشذوذ التلقائي إذا كان السؤال يتطلب ذلك
+    if (question.includes('شذوذ') || question.includes('غريب') || question.includes('تقرير شامل')) {
+      const anomalyReport = await generateAnomalyReport();
+      return {
+        success: true,
+        sql: 'ANOMALY_DETECTION',
+        results: [],
+        analysis: anomalyReport,
+        rowCount: 0
+      };
+    }
+
+    // 1. الحصول على وصف قاعدة البيانات المالية
+    const schema = getSchemaDescription();
+
+    // 2. استخدام LangChain للنظام المالي المتخصص
+    const llm = ensureLLM();
+    const prompt = generateFinancialQuery(question, schema);
+
+    const messages = [
+      new SystemMessage(FINANCIAL_SYSTEM_PROMPT),
+      new HumanMessage(prompt)
+    ];
+
+    const response = await llm.invoke(messages);
+    const generatedSQL = extractSql(response.content);
+    const cleanSQL = cleanFinancialQuery(generatedSQL);
+
+    console.log(`📊 Generated SQL: ${cleanSQL}`);
+
+    // 3. تنفيذ الاستعلام على قاعدة البيانات المالية
+    const results = executeQuery(cleanSQL);
+    console.log(`✅ Query executed, found ${results.length} records`);
+
+    // 4. تحليل النتائج المالية
+    const analysis = await generateFinancialAnalysis(question, cleanSQL, results);
+
+    return {
+      success: true,
+      sql: cleanSQL,
+      results,
+      analysis,
+      rowCount: results.length
+    };
+
+  } catch (error) {
+    console.error('❌ Error in financial query processing:', error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'حدث خطأ في معالجة الاستعلام المالي',
+      sql: '',
+      results: [],
+      analysis: 'عذراً، لم أتمكن من معالجة استعلامك المالي. يرجى المحاولة بصيغة أخرى.'
+    };
+  }
+}
+
+function cleanFinancialQuery(sql: string): string {
+  // إزالة علامات الكود والنصوص الإضافية
+  sql = sql.replace(/```sql\s*|\s*```/g, '').trim();
+  sql = sql.replace(/^.*?SELECT/i, 'SELECT'); // إزالة أي نص قبل SELECT
+  sql = sql.split('
+')[0]; // أخذ السطر الأول فقط
+
+  // إزالة الفاصلة المنقوطة النهائية
+  sql = sql.replace(/;\s*$/, '');
+
+  // التأكد من صحة أسماء الجداول
+  const validTables = ['vewAccountsList', 'vewInv_CustomersSuppliers', 'vewInv_ItemsMain', 'vewJournalEntries'];
+
+  // إضافة LIMIT إذا لم يكن موجوداً
+  if (!sql.toLowerCase().includes('limit') && sql.toLowerCase().startsWith('select')) {
+    sql += ' LIMIT 100';
+  }
+
+  // التحقق من وجود جداول صحيحة
+  const hasValidTable = validTables.some(table => sql.includes(table));
+  if (!hasValidTable && sql.toLowerCase().startsWith('select')) {
+    console.warn('⚠️ Invalid tables detected, using fallback query');
+    return FALLBACK_SQL;
+  }
+
+  return sql;
+}
+
+async function generateFinancialAnalysis(question: string, sql: string, results: any[]): Promise<string> {
+  try {
+    if (results.length === 0) {
+      return 'لم يتم العثور على بيانات تطابق استعلامك المالي. تأكد من صحة المعايير المطلوبة.';
+    }
+
+    // استخدام LangChain لتحليل النتائج المالية
+    const llm = ensureLLM();
+    const analysisPrompt = generateAnalysisPrompt(question, sql, results);
+
+    const messages = [
+      new SystemMessage(FINANCIAL_SYSTEM_PROMPT),
+      new HumanMessage(analysisPrompt)
+    ];
+
+    const response = await llm.invoke(messages);
+    return response.content as string || getDefaultFinancialAnalysis(results, question);
+
+  } catch (error) {
+    console.error('Error generating financial analysis:', error);
+    return getDefaultFinancialAnalysis(results, question);
+  }
+}
+
+function getDefaultFinancialAnalysis(results: any[], question: string): string {
+  const count = results.length;
+
+  // تحليل بسيط بناءً على نوع السؤال
+  if (question.includes('مبيعات') || question.includes('المبيعات')) {
+    const totalAmount = results.reduce((sum, row) => sum + (row.amount || 0), 0);
+    return `📊 **تحليل المبيعات:**
+- عدد العمليات: ${count}
+- إجمالي المبلغ: ${totalAmount.toLocaleString('ar-SA')} ريال
+- متوسط قيمة العملية: ${(totalAmount / count).toLocaleString('ar-SA')} ريال`;
+  }
+
+  if (question.includes('عملاء') || question.includes('العملاء')) {
+    return `👥 **تحليل العملاء:**
+- عدد العملاء: ${count}
+- يمكنك مراجعة قائمة العملاء أدناه لمزيد من التفاصيل`;
+  }
+
+  if (question.includes('أصناف') || question.includes('الأصناف') || question.includes('منتج')) {
+    return `📦 **تحليل الأصناف:**
+- عدد الأصناف: ${count}
+- راجع القائمة أدناه لتفاصيل كل صنف`;
+  }
+
+  if (question.includes('رصيد') || question.includes('حساب')) {
+    return `💰 **تحليل الحسابات:**
+- عدد الحسابات: ${count}
+- راجع الأرصدة أدناه للتفاصيل المالية`;
+  }
+
+  return `✅ تم العثور على ${count} سجل يطابق استعلامك. راجع النتائج التفصيلية أدناه.`;
 }

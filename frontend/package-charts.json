@@ -1,0 +1,6 @@
+{
+  "name": "recharts-install-temp",
+  "dependencies": {
+    "recharts": "^2.8.0"
+  }
+}

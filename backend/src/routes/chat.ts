@@ -1,7 +1,9 @@
 import express from 'express';
 import type { Response } from 'express';
-import { processUserQuery, processUserQueryStream } from '../ai/orchestration';
+import { processUserQuery, processUserQueryStream, processFinancialQuery } from '../ai/orchestration';
 import { AppError } from '../utils/errors';
+import { FINANCIAL_EXAMPLES } from '../ai/financial-prompts';
+import { detectFinancialAnomalies, generateAnomalyReport } from '../ai/anomaly-detection';
 
 const router = express.Router();
 
@@ -85,6 +87,121 @@ router.post('/stream', async (req, res) => {
     sendSSE(res, { type: 'error', data: { message: e?.message || String(e) } });
     endSSE(res, keepAlive);
   }
+});
+
+// ===== النظام المالي المتخصص =====
+
+/** بث SSE للاستعلامات المالية المتخصصة */
+async function processFinancialQueryStream(res: Response, question: string) {
+  try {
+    // إرسال رسالة بداية
+    sendSSE(res, {
+      type: 'token',
+      data: 'جاري تحليل استعلامك المالي...
+
+'
+    });
+
+    // معالجة الاستعلام المالي
+    const result = await processFinancialQuery(question);
+
+    if (result.success) {
+      // إرسال الاستعلام
+      sendSSE(res, {
+        type: 'token',
+        data: `**الاستعلام المنفذ:**
+\`\`\`sql
+${result.sql}
+\`\`\`
+
+`
+      });
+
+      // إرسال النتائج
+      if (result.results.length > 0) {
+        sendSSE(res, {
+          type: 'token',
+          data: `**النتائج (${result.rowCount} سجل):**
+
+`
+        });
+
+        // عرض النتائج في جدول
+        const tableData = formatResultsAsTable(result.results.slice(0, 10));
+        sendSSE(res, {
+          type: 'token',
+          data: tableData + '
+
+'
+        });
+
+        // إرسال التحليل
+        sendSSE(res, {
+          type: 'token',
+          data: `**التحليل:**
+${result.analysis}
+
+`
+        });
+      } else {
+        sendSSE(res, {
+          type: 'token',
+          data: 'لم يتم العثور على نتائج تطابق استعلامك.
+
+'
+        });
+      }
+    } else {
+      sendSSE(res, {
+        type: 'token',
+        data: `❌ ${result.error}
+
+`
+      });
+    }
+
+    // إنهاء الاستجابة
+    sendSSE(res, {
+      type: 'done',
+      data: { success: result.success, sql: result.sql }
+    });
+
+  } catch (error) {
+    sendSSE(res, {
+      type: 'error',
+      data: { message: 'حدث خطأ في معالجة الاستعلام المالي' }
+    });
+  }
+
+  res.end();
+}
+
+function formatResultsAsTable(results: any[]): string {
+  if (results.length === 0) return 'لا توجد نتائج';
+
+  const headers = Object.keys(results[0]);
+  let table = '| ' + headers.join(' | ') + ' |
+';
+  table += '| ' + headers.map(() => '---').join(' | ') + ' |
+';
+
+  results.forEach(row => {
+    const values = headers.map(header => {
+      const value = row[header];
+      if (value === null || value === undefined) return '-';
+      if (typeof value === 'number') return value.toLocaleString('ar-SA');
+      return String(value);
+    });
+    table += '| ' + values.join(' | ') + ' |
+';
+  });
+
+  return table;
+}
+
+// إضافة route للأمثلة المالية
+router.get('/financial-examples', (req, res) => {
+  res.json(FINANCIAL_EXAMPLES);
 });
 
 export default router;

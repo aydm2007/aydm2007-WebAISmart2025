@@ -69,8 +69,42 @@ export default function Sidebar() {
         تحميل المزيد
       </Button>
 
-      <div className="mt-3">
-        <Link className="text-blue-600 hover:underline" href="/sql">🔧 SQL Playground</Link>
+      <div className="mt-4 space-y-2">
+        <h3 className="text-sm font-semibold text-gray-700 mb-2">الأدوات المالية</h3>
+
+        <Link href="/dashboard" className="flex items-center gap-2 w-full p-2 text-right rounded-lg text-blue-600 hover:bg-blue-50 transition-colors">
+          <span className="text-lg">📊</span>
+          <span className="text-sm">لوحة التحكم المالية</span>
+        </Link>
+
+        <Link href="/sql" className="flex items-center gap-2 w-full p-2 text-right rounded-lg text-green-600 hover:bg-green-50 transition-colors">
+          <span className="text-lg">🔧</span>
+          <span className="text-sm">محرر SQL</span>
+        </Link>
+
+        <Link href="/settings" className="flex items-center gap-2 w-full p-2 text-right rounded-lg text-gray-600 hover:bg-gray-50 transition-colors">
+          <span className="text-lg">⚙️</span>
+          <span className="text-sm">الإعدادات</span>
+        </Link>
+
+        <div className="border-t pt-2 mt-3">
+          <h3 className="text-sm font-semibold text-gray-700 mb-2">التحليل السريع</h3>
+
+          <button className="flex items-center gap-2 w-full p-2 text-right rounded-lg text-purple-600 hover:bg-purple-50 transition-colors">
+            <span className="text-lg">🤖</span>
+            <span className="text-sm">المساعد الذكي</span>
+          </button>
+
+          <button className="flex items-center gap-2 w-full p-2 text-right rounded-lg text-orange-600 hover:bg-orange-50 transition-colors">
+            <span className="text-lg">📈</span>
+            <span className="text-sm">توقعات سريعة</span>
+          </button>
+
+          <button className="flex items-center gap-2 w-full p-2 text-right rounded-lg text-red-600 hover:bg-red-50 transition-colors">
+            <span className="text-lg">⚠️</span>
+            <span className="text-sm">كشف الشذوذ</span>
+          </button>
+        </div>
       </div>
     </aside>
   );

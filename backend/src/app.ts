@@ -12,12 +12,22 @@ import historyRouter from './routes/history';
 import sqlRouter from './routes/sql';
 import settingsRouter from './routes/settings';
 import metaRouter from './routes/meta';
+import companiesRouter from './routes/companies';
 import { errorHandler } from './utils/errorHandler';
+import { initializeDatabase } from './db/schema';
 
 dotenv.config();
 
 export function createApp() {
   const app = express();
+
+  // تهيئة قاعدة البيانات المالية
+  try {
+    initializeDatabase();
+    console.log('✅ Financial database initialized successfully');
+  } catch (error) {
+    console.error('❌ Failed to initialize database:', error);
+  }
 
   // خلف عكوس/حاويات
   app.set('trust proxy', 1);
@@ -87,6 +97,10 @@ export function createApp() {
   app.use('/api/sql', sqlRouter);
   app.use('/api/settings', settingsRouter);
   app.use('/api/meta', metaRouter);
+  app.use('/api/companies', companiesRouter);
+  app.use('/api/financial-data', companiesRouter);
+  app.use('/api/kpis', companiesRouter);
+  app.use('/api/dashboard', companiesRouter);
   app.use('/export', exportRoutes);
   app.use('/python', pythonProxy);
 
